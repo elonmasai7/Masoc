@@ -1,0 +1,8 @@
+rules:
+  failed_login_burst:
+    enabled: true
+    window_seconds: 300
+    threshold: 6
+  ransomware_file_burst:
+    enabled: true
+    threshold: 80

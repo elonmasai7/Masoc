@@ -1,0 +1,158 @@
+
+name: medshield-zerotrust
+
+services:
+  wazuh-indexer:
+    image: wazuh/wazuh-indexer:4.8.2
+    container_name: wazuh-indexer
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+    volumes:
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+    networks:
+      - soc_net
+    ports:
+      - "${INDEXER_PORT}:9200"
+
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.8.2
+    container_name: wazuh-manager
+    restart: unless-stopped
+    depends_on:
+      - wazuh-indexer
+    environment:
+      - INDEXER_URL=https://wazuh-indexer:9200
+      - WAZUH_API_USER=${WAZUH_API_USER}
+      - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD}
+    volumes:
+      - wazuh-manager-data:/var/ossec/data
+      - ./configs/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro
+    ports:
+      - "${WAZUH_MANAGER_PORT}:1514/udp"
+      - "${WAZUH_API_PORT}:55000"
+    networks:
+      - soc_net
+      - server_net
+
+  wazuh-dashboard:
+    image: wazuh/wazuh-dashboard:4.8.2
+    container_name: wazuh-dashboard
+    restart: unless-stopped
+    depends_on:
+      - wazuh-indexer
+      - wazuh-manager
+    environment:
+      - WAZUH_API_URL=https://wazuh-manager:55000
+      - DASHBOARD_USERNAME=${WAZUH_API_USER}
+      - DASHBOARD_PASSWORD=${WAZUH_API_PASSWORD}
+    ports:
+      - "${WAZUH_DASHBOARD_PORT}:5601"
+    networks:
+      - soc_net
+
+  suricata:
+    image: jasonish/suricata:7.0
+    container_name: suricata
+    restart: unless-stopped
+    command: ["-i", "eth0", "-c", "/etc/suricata/suricata.yaml", "-S", "/etc/suricata/local.rules"]
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ./configs/suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./configs/suricata/local.rules:/etc/suricata/local.rules:ro
+      - suricata-logs:/var/log/suricata
+    networks:
+      - mirror_net
+      - soc_net
+
+  openvas:
+    image: immauss/openvas:latest
+    container_name: openvas
+    restart: unless-stopped
+    environment:
+      - PASSWORD=${GVM_ADMIN_PASSWORD}
+      - USERNAME=${GVM_ADMIN_USER}
+      - RELAYHOST=
+      - SMTPPORT=25
+      - TZ=${TZ}
+    volumes:
+      - openvas-data:/data
+    ports:
+      - "${OPENVAS_WEB_PORT}:9392"
+    networks:
+      - mgmt_net
+      - server_net
+
+  wireguard:
+    image: linuxserver/wireguard:latest
+    container_name: wireguard
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ}
+      - SERVERURL=${WG_HOST}
+      - SERVERPORT=${WG_PORT}
+      - PEERS=${WG_PEERS}
+      - PEERDNS=${WG_DNS}
+      - INTERNAL_SUBNET=${WG_SUBNET}
+      - ALLOWEDIPS=${WG_ALLOWEDIPS}
+    volumes:
+      - ./configs/wireguard:/config
+      - /lib/modules:/lib/modules:ro
+    ports:
+      - "${WG_PORT}:51820/udp"
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      - edge_net
+      - staff_net
+
+  restic-runner:
+    image: restic/restic:latest
+    container_name: restic-runner
+    restart: unless-stopped
+    env_file:
+      - ./configs/restic/restic.env
+    volumes:
+      - ./scripts/backup.sh:/opt/backup.sh:ro
+      - backups-source:/backup-source:ro
+    entrypoint: ["/bin/sh", "-c", "chmod +x /opt/backup.sh && while true; do /opt/backup.sh; sleep 86400; done"]
+    networks:
+      - mgmt_net
+
+networks:
+  edge_net:
+    driver: bridge
+  staff_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${STAFF_NET}
+  server_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${SERVER_NET}
+  mgmt_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${MGMT_NET}
+  mirror_net:
+    driver: bridge
+  soc_net:
+    driver: bridge
+
+volumes:
+  wazuh-indexer-data:
+  wazuh-manager-data:
+  suricata-logs:
+  openvas-data:
+  backups-source:

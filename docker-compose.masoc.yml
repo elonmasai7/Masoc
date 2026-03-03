@@ -1,0 +1,189 @@
+name: medshield-autonomous-soc
+
+services:
+  redpanda:
+    image: redpandadata/redpanda:v24.1.12
+    container_name: masoc-redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --check=false
+      - --node-id=0
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+    networks:
+      - masoc_net
+
+  telemetry-ingestor:
+    build:
+      context: ./services/masoc
+    container_name: masoc-telemetry-ingestor
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+      - RAW_TOPIC=telemetry.raw
+    command: ["python", "-m", "src.telemetry_ingestor"]
+    depends_on:
+      - redpanda
+    ports:
+      - "8088:8088"
+    networks:
+      - masoc_net
+
+  intel-ingestor:
+    build:
+      context: ./services/masoc
+    container_name: masoc-intel-ingestor
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+      - INTEL_TOPIC=threat.intel
+    command: ["python", "-m", "src.intel_ingestor"]
+    depends_on:
+      - redpanda
+    ports:
+      - "8089:8089"
+    networks:
+      - masoc_net
+
+  connector-hub:
+    build:
+      context: ./services/masoc
+    container_name: masoc-connector-hub
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+      - RAW_TOPIC=telemetry.raw
+      - INTEL_TOPIC=threat.intel
+      - CONNECTOR_CONFIG_PATH=/app/config/connectors.yaml
+      - ENTRA_EVENTS_URL=${ENTRA_EVENTS_URL:-}
+      - ENTRA_API_TOKEN=${ENTRA_API_TOKEN:-}
+      - OKTA_EVENTS_URL=${OKTA_EVENTS_URL:-}
+      - OKTA_API_TOKEN=${OKTA_API_TOKEN:-}
+      - CROWDSTRIKE_DETECTIONS_URL=${CROWDSTRIKE_DETECTIONS_URL:-}
+      - CROWDSTRIKE_API_TOKEN=${CROWDSTRIKE_API_TOKEN:-}
+      - SENTINELONE_ALERTS_URL=${SENTINELONE_ALERTS_URL:-}
+      - SENTINELONE_API_TOKEN=${SENTINELONE_API_TOKEN:-}
+      - PROOFPOINT_EVENTS_URL=${PROOFPOINT_EVENTS_URL:-}
+      - PROOFPOINT_API_TOKEN=${PROOFPOINT_API_TOKEN:-}
+      - MIMECAST_EVENTS_URL=${MIMECAST_EVENTS_URL:-}
+      - MIMECAST_API_TOKEN=${MIMECAST_API_TOKEN:-}
+      - TAXII_COLLECTION_URL=${TAXII_COLLECTION_URL:-}
+      - TAXII_API_TOKEN=${TAXII_API_TOKEN:-}
+    command: ["python", "-m", "src.connector_hub"]
+    volumes:
+      - ./configs/masoc:/app/config:ro
+    depends_on:
+      - redpanda
+    ports:
+      - "8092:8092"
+    networks:
+      - masoc_net
+
+  stream-processor:
+    build:
+      context: ./services/masoc
+    container_name: masoc-stream-processor
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+      - RAW_TOPIC=telemetry.raw
+      - NORMALIZED_TOPIC=telemetry.normalized
+      - RULES_TOPIC=detections.rules
+      - FAILED_LOGIN_WINDOW_SEC=${FAILED_LOGIN_WINDOW_SEC:-300}
+      - FAILED_LOGIN_THRESHOLD=${FAILED_LOGIN_THRESHOLD:-6}
+    command: ["python", "-m", "src.stream_processor"]
+    depends_on:
+      - redpanda
+    networks:
+      - masoc_net
+
+  ml-engine:
+    build:
+      context: ./services/masoc
+    container_name: masoc-ml-engine
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+      - NORMALIZED_TOPIC=telemetry.normalized
+      - ML_TOPIC=detections.ml
+      - ML_MIN_TRAIN_SAMPLES=${ML_MIN_TRAIN_SAMPLES:-50}
+      - ML_HISTORY_SIZE=${ML_HISTORY_SIZE:-500}
+    command: ["python", "-m", "src.ml_engine"]
+    depends_on:
+      - redpanda
+    networks:
+      - masoc_net
+
+  risk-engine:
+    build:
+      context: ./services/masoc
+    container_name: masoc-risk-engine
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+      - ML_TOPIC=detections.ml
+      - RULES_TOPIC=detections.rules
+      - INTEL_TOPIC=threat.intel
+      - INCIDENT_TOPIC=incidents.risk
+      - ASSET_CRITICALITY_PATH=/app/config/asset_criticality.yaml
+      - RISK_DEDUP_SECONDS=${RISK_DEDUP_SECONDS:-300}
+    command: ["python", "-m", "src.risk_engine"]
+    volumes:
+      - ./configs/masoc:/app/config:ro
+    depends_on:
+      - redpanda
+    networks:
+      - masoc_net
+
+  soar-engine:
+    build:
+      context: ./services/masoc
+    container_name: masoc-soar-engine
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+      - INCIDENT_TOPIC=incidents.risk
+      - SOAR_POLICY_PATH=/app/config/soar_policy.yaml
+      - MASOC_DB_PATH=/data/masoc.db
+    command: ["python", "-m", "src.soar_engine"]
+    volumes:
+      - ./configs/masoc:/app/config:ro
+      - masoc-data:/data
+    depends_on:
+      - redpanda
+    ports:
+      - "8090:8090"
+    networks:
+      - masoc_net
+
+  soc-dashboard:
+    build:
+      context: ./services/masoc
+    container_name: masoc-soc-dashboard
+    restart: unless-stopped
+    environment:
+      - MASOC_DB_PATH=/data/masoc.db
+    command: ["python", "-m", "src.soc_dashboard"]
+    volumes:
+      - masoc-data:/data
+    depends_on:
+      - soar-engine
+    ports:
+      - "8091:8091"
+    networks:
+      - masoc_net
+
+networks:
+  masoc_net:
+    driver: bridge
+
+volumes:
+  masoc-data:

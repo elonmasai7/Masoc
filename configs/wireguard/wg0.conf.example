@@ -1,0 +1,11 @@
+[Interface]
+Address = 10.13.13.1/24
+ListenPort = 51820
+PrivateKey = <SERVER_PRIVATE_KEY>
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT
+
+[Peer]
+PublicKey = <STAFF_DEVICE_PUBLIC_KEY>
+AllowedIPs = 10.13.13.2/32
+PersistentKeepalive = 25

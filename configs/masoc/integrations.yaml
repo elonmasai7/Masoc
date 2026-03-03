@@ -1,0 +1,90 @@
+identity:
+  primary_idp: "microsoft_entra_id"
+  alternatives:
+    - okta
+  controls:
+    - adaptive_mfa
+    - conditional_access
+    - risk_based_login_scoring
+    - just_in_time_privileged_access
+    - password_vaulting
+
+endpoint_security:
+  preferred:
+    - crowdstrike
+    - sentinelone
+  controls:
+    - behavior_ai_detection
+    - ransomware_prevention
+    - application_allow_listing
+    - usb_device_control
+    - memory_exploit_protection
+
+ndr:
+  preferred:
+    - darktrace
+    - extrahop
+  controls:
+    - east_west_traffic_monitoring
+    - encrypted_traffic_analytics
+    - medical_device_network_visibility
+
+cloud_security:
+  preferred:
+    - wiz
+    - prisma_cloud
+  controls:
+    - cspm
+    - container_runtime_protection
+
+email_security:
+  preferred:
+    - proofpoint
+    - mimecast
+  controls:
+    - phishing_detection
+    - impersonation_protection
+    - sandboxing
+
+deception:
+  preferred:
+    - illusive
+    - trapx
+  controls:
+    - credential_deception
+    - decoy_medical_devices
+
+threat_intel:
+  standards:
+    - mitre_attack
+    - stix_taxii
+  feeds:
+    - alienvault_otx
+
+soar:
+  platforms:
+    - cortex_xsoar
+    - splunk_soar
+
+vulnerability_and_exposure:
+  preferred:
+    - tenable
+    - rapid7
+  controls:
+    - external_attack_surface_monitoring
+    - breach_and_attack_simulation
+
+dlp:
+  preferred:
+    - varonis
+    - forcepoint
+  controls:
+    - sensitive_data_discovery
+    - egress_data_controls
+
+healthcare_specific:
+  controls:
+    - hl7_fhir_monitoring
+    - pacs_monitoring
+    - clinical_iot_segmentation
+    - immutable_backup_appliance

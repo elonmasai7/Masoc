@@ -1,0 +1,7 @@
+criticality:
+  default: 1.0
+  ehr-db-01: 1.5
+  imaging-gw-01: 1.4
+  lab-device-gw-01: 1.35
+  domain-admin: 1.5
+  nurse.demo: 1.1

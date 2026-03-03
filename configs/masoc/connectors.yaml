@@ -1,0 +1,73 @@
+connectors:
+  - name: entra
+    type: identity
+    mode: pull
+    enabled: false
+    interval_seconds: 300
+    url: "${ENTRA_EVENTS_URL}"
+    auth:
+      type: bearer
+      token_env: ENTRA_API_TOKEN
+
+  - name: okta
+    type: identity
+    mode: pull
+    enabled: false
+    interval_seconds: 300
+    url: "${OKTA_EVENTS_URL}"
+    auth:
+      type: apikey
+      key_name: Authorization
+      key_env: OKTA_API_TOKEN
+
+  - name: crowdstrike
+    type: edr
+    mode: pull
+    enabled: false
+    interval_seconds: 180
+    url: "${CROWDSTRIKE_DETECTIONS_URL}"
+    auth:
+      type: bearer
+      token_env: CROWDSTRIKE_API_TOKEN
+
+  - name: sentinelone
+    type: edr
+    mode: pull
+    enabled: false
+    interval_seconds: 180
+    url: "${SENTINELONE_ALERTS_URL}"
+    auth:
+      type: apikey
+      key_name: Authorization
+      key_env: SENTINELONE_API_TOKEN
+
+  - name: proofpoint
+    type: email
+    mode: pull
+    enabled: false
+    interval_seconds: 300
+    url: "${PROOFPOINT_EVENTS_URL}"
+    auth:
+      type: bearer
+      token_env: PROOFPOINT_API_TOKEN
+
+  - name: mimecast
+    type: email
+    mode: pull
+    enabled: false
+    interval_seconds: 300
+    url: "${MIMECAST_EVENTS_URL}"
+    auth:
+      type: apikey
+      key_name: Authorization
+      key_env: MIMECAST_API_TOKEN
+
+  - name: taxii
+    type: taxii
+    mode: pull
+    enabled: false
+    interval_seconds: 600
+    url: "${TAXII_COLLECTION_URL}"
+    auth:
+      type: bearer
+      token_env: TAXII_API_TOKEN

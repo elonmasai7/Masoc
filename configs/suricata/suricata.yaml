@@ -1,0 +1,36 @@
+%YAML 1.1
+---
+vars:
+  address-groups:
+    HOME_NET: "[10.10.0.0/16]"
+    EXTERNAL_NET: "!$HOME_NET"
+
+default-rule-path: /etc/suricata
+rule-files:
+  - local.rules
+
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: /var/log/suricata/eve.json
+      types:
+        - alert:
+            tagged-packets: yes
+        - http
+        - dns
+        - tls
+        - ssh
+        - flow
+
+af-packet:
+  - interface: eth0
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+
+detect-engine:
+  - profile: medium
+
+threading:
+  set-cpu-affinity: no

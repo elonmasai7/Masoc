@@ -1,0 +1,6 @@
+auto_action_min_score: 70
+break_glass_score: 95
+high_impact_actions:
+  - disable_account
+  - network_wide_isolation
+  - shutdown_critical_system
