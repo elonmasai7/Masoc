@@ -5,6 +5,27 @@ This repository contains two deployable security planes for healthcare clinics:
 - `MedShield ZeroTrust`: foundational controls (Wazuh, Suricata, OpenVAS, WireGuard, Restic)
 - `MedShield Autonomous SOC (MASOC)`: real-time telemetry pipeline, ML detection, risk correlation, SOAR automation with human approval
 
+## Problem
+
+Small and mid-sized healthcare clinics face high ransomware, phishing, and credential abuse risk, but usually lack enterprise SOC staffing and integrated tooling. Security data is often fragmented across endpoints, identity, email, and network controls, which slows detection and containment and increases patient-data and uptime risk.
+
+## Solution
+
+MedShield provides a practical, containerized architecture with:
+
+- Zero Trust foundation controls (segmentation, VPN, SIEM/EDR, vulnerability scanning, encrypted backups)
+- MASOC real-time pipeline for telemetry ingestion, stream processing, ML-based anomaly detection, and risk correlation
+- SOAR automation with human-in-the-loop approvals for high-impact actions
+- Connector stubs for Entra/Okta, CrowdStrike/SentinelOne, Proofpoint/Mimecast, and STIX/TAXII threat intelligence feeds
+
+## Impact
+
+- Faster detection and prioritization of high-risk incidents
+- Quicker, policy-governed containment of ransomware and account compromise
+- Reduced alert fatigue through correlation, deduplication, and risk scoring
+- Better healthcare resilience with auditable response actions and recovery-focused operations
+- Scalable path from budget-friendly clinic deployment to enterprise-grade SOC integrations
+
 ## 1. ZeroTrust Stack
 
 Main compose file: `docker-compose.yml`
