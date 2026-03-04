@@ -1,3 +1,6 @@
+import os
+
+import requests
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
@@ -5,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from .common import db_conn, init_db
 
 app = FastAPI(title="MASOC Dashboard")
+CONNECTOR_API = os.getenv("CONNECTOR_API", "http://connector-hub:8092")
 
 
 @app.get("/health")
@@ -23,6 +27,13 @@ def summary() -> dict:
         cur.execute("SELECT COUNT(*) FROM actions WHERE decision LIKE 'auto_%'")
         auto_actions = cur.fetchone()[0]
     return {"incidents": incidents, "pending_approvals": pending, "auto_actions": auto_actions}
+
+
+@app.post("/api/actions/reload-connectors")
+def reload_connectors() -> dict:
+    response = requests.post(f"{CONNECTOR_API}/reload", timeout=10)
+    response.raise_for_status()
+    return {"ok": True, "action": "connector_config_reloaded"}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -56,14 +67,43 @@ def home() -> str:
         body {{ font-family: "IBM Plex Sans", sans-serif; margin: 2rem; background: #f4f7f3; color: #102a43; }}
         h1 {{ margin-bottom: 0.2rem; }}
         .panel {{ background: #ffffff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }}
+        .actions {{ display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.75rem; }}
+        button {{ background: #0b6bcb; color: white; border: 0; border-radius: 6px; padding: 0.55rem 0.8rem; cursor: pointer; font-size: 0.86rem; }}
+        button.secondary {{ background: #3f8f57; }}
+        button.dark {{ background: #334e68; }}
+        #status {{ font-size: 0.85rem; color: #486581; margin-top: 0.2rem; }}
         table {{ width: 100%; border-collapse: collapse; }}
         th, td {{ border-bottom: 1px solid #d9e2ec; text-align: left; padding: 0.5rem; font-size: 0.9rem; }}
         th {{ background: #e6f4ea; }}
       </style>
+      <script>
+        async function runAction(path, msg) {{
+          const status = document.getElementById("status");
+          status.textContent = "Running...";
+          try {{
+            const res = await fetch(path, {{ method: "POST" }});
+            if (!res.ok) throw new Error("request_failed");
+            status.textContent = msg;
+          }} catch (e) {{
+            status.textContent = "Action failed. Check service health.";
+          }}
+        }}
+      </script>
     </head>
     <body>
       <h1>MedShield Autonomous SOC (MASOC)</h1>
       <p>Real-time incidents, AI correlation, and governed response actions.</p>
+      <div class="panel">
+        <h2>Quick Actions</h2>
+        <div class="actions">
+          <button class="secondary" onclick="runAction('/api/actions/reload-connectors', 'Connector config reloaded')">Reload Connector Config</button>
+          <button class="dark" onclick="window.location.reload()">Refresh Dashboard</button>
+          <button class="dark" onclick="window.open('/api/summary', '_blank')">Open Summary JSON</button>
+          <button class="dark" onclick="window.open('http://localhost:8090/approvals/pending', '_blank')">Pending Approvals</button>
+          <button class="dark" onclick="window.open('http://localhost:8092/status', '_blank')">Open Connector Status</button>
+        </div>
+        <div id="status">Ready</div>
+      </div>
       <div class="panel">
         <h2>Active Incidents</h2>
         <table>
